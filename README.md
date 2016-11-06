@@ -26,7 +26,7 @@ hashing and password-based key derivation, but it is slower as it makes
 more passes over the memory to protect from tradeoff attacks. Argon2id is a
 hybrid of Argon2i and Argon2d, using a combination of data-depending and
 data-independent memory accesses, which gives some of Argon2i's resistance to
-side-channel cache timing attacks and much of Argon2d's resistance to GPU 
+side-channel cache timing attacks and much of Argon2d's resistance to GPU
 cracking attacks.
 
 Argon2i, Argon2d, and Argon2id are parametrized by:
@@ -54,7 +54,7 @@ results. `make install PREFIX=/usr` installs it to your system.
 on your system. To show usage instructions, run
 `./argon2 -h` as
 ```
-Usage:  ./argon2 [-h] salt [-i|-d|-id] [-t iterations] [-m memory] [-p parallelism] [-l hash length] [-e|-r]
+Usage:  ./argon2 [-h] salt [-i|-d|-id] [-t iterations] [-m memory] [-p parallelism] [-l hash length] [-e|-r] [-v (10|13)]
         Password is read from stdin
 Parameters:
         salt            The salt to use, at least 8 characters
@@ -67,6 +67,7 @@ Parameters:
         -l N            Sets hash output length to N bytes (default 32)
         -e              Output only encoded hash
         -r              Output only the raw bytes of the hash
+        -v (10|13)      Argon2 version (defaults to the most recent version, currently 13)
         -h              Print argon2 usage
 ```
 For example, to hash "password" using "somesalt" as a salt and doing 2
@@ -91,10 +92,33 @@ for using Argon2.
 
 The example program below hashes the string "password" with Argon2i
 using the high-level API and then using the low-level API. While the
-high-level API only takes input/output buffers and the two cost
-parameters, the low-level API additionally takes parallelism parameters
-and several others, as defined in [`include/argon2.h`](include/argon2.h).
+high-level API takes the three cost parameters (time, memory, and
+parallelism), the password input buffer, the salt input buffer, and the
+output buffers, the low-level API takes in these and additional parameters
+, as defined in [`include/argon2.h`](include/argon2.h).
 
+There are many additional parameters, but we will highlight three of them here.
+
+1. The `secret` parameter, which is used for [keyed hashing](
+   https://en.wikipedia.org/wiki/Hash-based_message_authentication_code).
+   This allows a secret key to be input at hashing time (from some external
+   location) and be folded into the value of the hash. This means that even if
+   your salts and hashes are compromized, an attacker cannot brute-force to find
+   the password without the key.
+
+2. The `ad` parameter, which is used to fold any additional data into the hash
+   value. Functionally, this behaves almost exactly like the `secret` or `salt`
+   parameters; the `ad` parameter is folding into the value of the hash.
+   However, this parameter is used for different data. The `salt` should be a
+   random string stored alongside your password. The `secret` should be a random
+   key only usable at hashing time. The `ad` is for any other data.
+
+3. The `flags` parameter, which determines which memory should be securely
+   erased. This is useful if you want to securly delete the `pwd` or `secret`
+   fields right after they are used. To do this set `flags` to either
+   `ARGON2_FLAG_CLEAR_PASSWORD` or `ARGON2_FLAG_CLEAR_SECRET`. To change how
+   internal memory is cleared, change the global flag
+   `FLAG_clear_internal_memory` (defaults to clearing internal memory).
 
 Here the time cost `t_cost` is set to 2 iterations, the
 memory cost `m_cost` is set to 2<sup>16</sup> kibibytes (64 mebibytes),
@@ -144,7 +168,8 @@ int main(void)
         t_cost, m_cost, parallelism, parallelism,
         ARGON2_VERSION_13, /* algorithm version */
         NULL, NULL, /* custom memory allocation / deallocation functions */
-        ARGON2_DEFAULT_FLAGS /* by default the password is zeroed on exit */
+        /* by default only internal memory is cleared (pwd is not wiped) */
+        ARGON2_DEFAULT_FLAGS
     };
 
     int rc = argon2i_ctx( &context );
@@ -218,9 +243,11 @@ Argon2i 1 iterations  4096 MiB 4 threads:  2.72 cpb 11124.86 Mcycles
 Bindings are available for the following languages (make sure to read
 their documentation):
 
+* [Elixir](https://github.com/riverrun/argon2_elixir) by [@riverrun](https://github.com/riverrun)
 * [Go](https://github.com/tvdburgt/go-argon2) by [@tvdburgt](https://github.com/tvdburgt)
 * [Haskell](https://hackage.haskell.org/package/argon2-1.0.0/docs/Crypto-Argon2.html) by [@ocharles](https://github.com/ocharles)
 * [JavaScript (native)](https://github.com/ranisalt/node-argon2), by [@ranisalt](https://github.com/ranisalt)
+* [JavaScript (native)](https://github.com/jdconley/argon2themax), by [@jdconley](https://github.com/jdconley)
 * [JavaScript (ffi)](https://github.com/cjlarose/argon2-ffi), by [@cjlarose](https://github.com/cjlarose)
 * [JavaScript (browser)](https://github.com/antelle/argon2-browser), by [@antelle](https://github.com/antelle)
 * [JVM](https://github.com/phxql/argon2-jvm) by [@phXql](https://github.com/phxql)
@@ -235,7 +262,7 @@ their documentation):
 * [Perl](https://github.com/Leont/crypt-argon2) by [@leont](https://github.com/Leont)
 
 
-## Test Suite
+## Test suite
 
 There are two sets of test suites. One is a low level test for the hash
 function, the other tests the higher level API. Both of these are built and

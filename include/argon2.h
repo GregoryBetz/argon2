@@ -84,10 +84,14 @@ extern "C" {
 #define ARGON2_MIN_SECRET UINT32_C(0)
 #define ARGON2_MAX_SECRET UINT32_C(0xFFFFFFFF)
 
+/* Flags to determine which fields are securely wiped (default = no wipe). */
+#define ARGON2_DEFAULT_FLAGS UINT32_C(0)
 #define ARGON2_FLAG_CLEAR_PASSWORD (UINT32_C(1) << 0)
 #define ARGON2_FLAG_CLEAR_SECRET (UINT32_C(1) << 1)
-#define ARGON2_FLAG_CLEAR_MEMORY (UINT32_C(1) << 2)
-#define ARGON2_DEFAULT_FLAGS (ARGON2_FLAG_CLEAR_MEMORY)
+
+/* Global flag to determine if we are wiping internal memory buffers. This flag
+ * is defined in core.c and deafults to 1 (wipe internal memory). */
+extern int FLAG_clear_internal_memory;
 
 /* Error codes */
 typedef enum Argon2_ErrorCodes {
@@ -417,6 +421,7 @@ ARGON2_PUBLIC const char *argon2_error_message(int error_code);
  * @param parallelism  Number of threads; used to compute lanes
  * @param saltlen  Salt size in bytes
  * @param hashlen  Hash size in bytes
+ * @param type The argon2_type that we want the encoded length for
  * @return  The encoded hash length in bytes
  */
 ARGON2_PUBLIC size_t argon2_encodedlen(uint32_t t_cost, uint32_t m_cost,
